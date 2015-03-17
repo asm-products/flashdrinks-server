@@ -1,0 +1,10 @@
+{
+  "AWS_ACCESS_KEY_ID": "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY": "AWS_SECRET_ACCESS_KEY",
+  "yelp": {
+    "consumer_key": "consumer_key",
+    "consumer_secret": "consumer_secret",
+    "token": "token",
+    "token_secret": "token_secret"
+  }
+}
