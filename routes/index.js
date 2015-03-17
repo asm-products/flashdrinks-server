@@ -1,6 +1,8 @@
 var express = require('express');
 var router = express.Router();
 var nconf = require("nconf");
+var multipart = require('connect-multiparty');
+var multipartMiddleware = multipart();
 
 router.get('/', function(req, res, next) {
   res.send(200);
@@ -24,10 +26,11 @@ router.get('/yelp-search', function(req, res, next){
 
 // ------ S3 ------
 var Upload = require('s3-uploader');
-var client = new Upload('my_s3_bucket', {
-  awsBucketRegion: 'us-east-1',
-  awsBucketPath: 'images/',
-  awsBucketAcl: 'public-read',
+//TODO use bucket policies instead of key/secret
+var client = new Upload('flashdrinks', {
+  //'aws.region': 'us-east-1',
+  'aws.path': 'images/',
+  'aws.acl': 'public-read',
 
   versions: [{
     original: true
@@ -47,8 +50,8 @@ var client = new Upload('my_s3_bucket', {
   }]
 });
 
-router.post('/s3-upload', function(req, res, next){
-  client.upload('/some/file/path.jpg', {}, function(err, images, meta) {
+router.post('/s3-upload', multipartMiddleware, function(req, res, next){
+  client.upload(req.files.fileUpload.path, {}, function(err, images, meta) {
     if (err) {
       console.error(err);
     } else {
