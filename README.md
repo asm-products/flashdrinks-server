@@ -1,4 +1,6 @@
-# Flashdrinks
+# Flashdrinks Server
+
+NOTE: This repo is for various odds & ends (Yelp search proxying, S3 image resizing, etc). Flashdrinks doesn't depend on this server much as it uses Firebase for it's backend and storage. Ie, this repo is likely not what you're looking for. Check out [the main project](https://github.com/asm-products/flashdrinks).
 
 <a href="https://assembly.com/flashdrinks/bounties?utm_campaign=assemblage&utm_source=flashdrinks&utm_medium=repo_badge"><img src="https://asm-badger.herokuapp.com/flashdrinks/badges/tasks.svg" height="24px" alt="Open Tasks" /></a>
 
