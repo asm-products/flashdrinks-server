@@ -1,6 +1,8 @@
 {
-  "AWS_ACCESS_KEY_ID": "AWS_ACCESS_KEY_ID",
-  "AWS_SECRET_ACCESS_KEY": "AWS_SECRET_ACCESS_KEY",
+  "aws": {
+    "accessKeyId": "accessKeyId",
+    "secretAccessKey": "secretAccessKey"
+  },
   "yelp": {
     "consumer_key": "consumer_key",
     "consumer_secret": "consumer_secret",
