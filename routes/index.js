@@ -26,7 +26,6 @@ router.get('/yelp-search', function(req, res, next){
 
 // ------ S3 ------
 var Upload = require('s3-uploader');
-//TODO use bucket policies instead of key/secret
 var client = new Upload('flashdrinks', {
   aws: {
     accessKeyId: nconf.get('aws:accessKeyId'),
@@ -36,19 +35,22 @@ var client = new Upload('flashdrinks', {
     acl: 'public-read'
   },
 
-  versions: [{
-    suffix: '-medium',
-    maxHeight: 320,
-    maxWidth: 320
-  },{
+  versions: [
+  //{
+  //  suffix: '-medium',
+  //  maxHeight: 320,
+  //  maxWidth: 320
+  //},
+  {
     suffix: '-small',
     maxHeight: 80,
     maxWidth: 80
-  }]
+  }
+  ]
 });
 
 router.post('/s3-upload', multipartMiddleware, function(req, res, next){
-  client.upload(req.files.fileUpload.path, {}, function(err, images, meta) {
+  client.upload(req.files.file.path, {}, function(err, images, meta) {
     if (err) return next(err);
     res.json(images);
   });
