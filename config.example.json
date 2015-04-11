@@ -1,7 +1,12 @@
 {
   "aws": {
     "accessKeyId": "accessKeyId",
-    "secretAccessKey": "secretAccessKey"
+    "secretAccessKey": "secretAccessKey",
+    "region": "region",
+    "sns": {
+      "GCM": "GCM",
+      "APNS": "APNS"
+    }
   },
   "yelp": {
     "consumer_key": "consumer_key",
