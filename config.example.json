@@ -4,8 +4,9 @@
     "secretAccessKey": "secretAccessKey",
     "region": "region",
     "sns": {
-      "GCM": "GCM",
-      "APNS": "APNS"
+      "arn": "arn:aws:sns:us-east-1:xxx",
+      "GCM": "app/GCM/Flashdrinks",
+      "APNS": "app/APNS/Flashdrinks"
     }
   },
   "yelp": {

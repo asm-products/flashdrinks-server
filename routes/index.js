@@ -4,6 +4,7 @@ var nconf = require("nconf");
 var multipart = require('connect-multiparty');
 var multipartMiddleware = multipart();
 var AWS = require('s3-uploader/node_modules/aws-sdk');
+var _ = require('lodash');
 
 router.get('/', function(req, res, next) {
   res.send(200);
@@ -62,24 +63,95 @@ router.post('/s3-upload', multipartMiddleware, function(req, res, next){
 AWS.config.update({accessKeyId: nconf.get('aws:accessKeyId'), secretAccessKey: nconf.get('aws:secretAccessKey')});
 AWS.config.update({region: nconf.get('aws:region')});
 var sns = new AWS.SNS();
-router.post('/subscribe-push', function(req, res, next){
-  if (!req.body.token) return res.json(400, {"status": "error", "message": "Please provide a token."});
-  if (!req.body.platform) return res.json(400, {"status": "error", "message": "Please provide a platform."});
-  var token = req.body.token,
-    platform = req.body.platform,
-    arn = (platform=='GCM' /*|| APNS*/) ? nconf.get("aws:sns:"+platform) : false;
-  if (!arn) return res.json(400, {"status": "error", "message": "Please provide a valid platform."});
-  sns.createPlatformEndpoint({PlatformApplicationArn:platformApplicationArn, Token:token}, function(err, EndPointResult) {
-    if (err) return res.json(400, {status: "error", "message": err.toString()});
-    return res.json(200, {status: "ok"});
-    //var client_arn = EndPointResult["EndpointArn"];
-    //sns.publish({TargetArn: client_arn, Message: 'Test', Subject: 'Stuff'}, function(err,data){
-    //  if (err) {
-    //    console.log("Error sending a message "+err);
-    //  } else {
-    //    console.log("Sent message: "+data.MessageId);
-    //  }
-    //});
+
+router.post('/push/register', function(req, res, next){
+  if (!req.body.token) return next({status: 400, message: "Please provide a token."});
+  if (!req.body.platform) return next({status: 400, message: "Please provide a platform."});
+  var arn = _.includes(['GCM'/*,'APNS'*/], req.body.platform) ?
+    nconf.get("aws:sns:arn")+":"+(nconf.get("aws:sns:"+req.body.platform)) : false;
+  if (!arn) return next({status: 400, message: "Please provide a valid platform."});
+  sns.createPlatformEndpoint({PlatformApplicationArn:arn, Token:req.body.token}, function(err, EndPointResult) {
+    if (err) return next({status: 400, message: err.toString()});
+    return res.json(200, EndPointResult);
+  });
+});
+
+router.post('/push/subscribe', function(req, res, next){
+    if (!req.body.topic) return next({status: 400, message: "Please provide a topic."})
+    var params = {
+      TopicArn: nconf.get('aws:sns:arn')+':'+req.body.topic
+    }
+
+    var subscribe = function(data){
+      console.log(req.body);
+      var params = {
+        Protocol: 'application', /* required */
+        TopicArn: data.TopicArn, /* required */
+        Endpoint: req.body.EndpointArn //req.body.token //FIXME is this secure?
+      };
+      sns.subscribe(params, function(err, data) {
+        if (err) return next(err);
+        console.log(data);
+        return res.json(200, {status: "ok"});
+      });
+    };
+    sns.getTopicAttributes(params, function(err, data){
+      if (err) {
+
+       // Create & subscribe
+       if (err.code == 'NotFound') {
+         var params = {
+           Name: req.body.topic /* required */
+         };
+         sns.createTopic(params, function(err, data) {
+           if (err) return next(err);
+           return subscribe(data);
+         });
+
+       // No there was actually a real error
+       } else {
+         return next(err);
+       }
+
+      // Topic exits, subscribe
+      } else {
+        return subscribe(data.Attributes);
+      }
+      res.json(200, {status:"ok"});
+  })
+
+});
+
+router.post('/push/delete-topic', function(req, res, next){
+  if (!req.body.topic) return next({status: 400, message: "Please provide a topic."})
+  var params = {
+    TopicArn: nconf.get('aws:sns:arn')+':'+req.body.topic
+  };
+  sns.deleteTopic(params, function(err, data) {
+    if (err) return next(err);
+    else return res.json(200, {status: 'ok'});
+  });
+});
+
+router.post('/push/publish', function(req, res, next){
+  var params = {
+    Message: 'New activity on '+req.body.topic, /* required */
+    //MessageAttributes: {
+    //  someKey: {
+    //    DataType: 'STRING_VALUE', /* required */
+    //    BinaryValue: new Buffer('...') || 'STRING_VALUE',
+    //    StringValue: 'STRING_VALUE'
+    //  },
+    //  /* anotherKey: ... */
+    //},
+    //MessageStructure: 'STRING_VALUE',
+    Subject: 'Flashdrinks Activity',
+    TargetArn: 'TopicArn',
+    TopicArn: nconf.get('aws:sns:arn')+':'+req.body.topic
+  };
+  sns.publish(params, function(err, data) {
+    if (err) return next(err);
+    else return res.json(200, {status: ok});
   });
 })
 
