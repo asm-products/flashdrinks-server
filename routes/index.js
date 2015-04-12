@@ -5,6 +5,7 @@ var multipart = require('connect-multiparty');
 var multipartMiddleware = multipart();
 var AWS = require('s3-uploader/node_modules/aws-sdk');
 var _ = require('lodash');
+var async = require('async');
 
 router.get('/', function(req, res, next) {
   res.send(200);
@@ -76,52 +77,6 @@ router.post('/push/register', function(req, res, next){
   });
 });
 
-router.post('/push/subscribe', function(req, res, next){
-    if (!req.body.topic) return next({status: 400, message: "Please provide a topic."})
-    var params = {
-      TopicArn: nconf.get('aws:sns:arn')+':'+req.body.topic
-    }
-
-    var subscribe = function(data){
-      console.log(req.body);
-      var params = {
-        Protocol: 'application', /* required */
-        TopicArn: data.TopicArn, /* required */
-        Endpoint: req.body.EndpointArn //req.body.token //FIXME is this secure?
-      };
-      sns.subscribe(params, function(err, data) {
-        if (err) return next(err);
-        console.log(data);
-        return res.json(200, {status: "ok"});
-      });
-    };
-    sns.getTopicAttributes(params, function(err, data){
-      if (err) {
-
-       // Create & subscribe
-       if (err.code == 'NotFound') {
-         var params = {
-           Name: req.body.topic /* required */
-         };
-         sns.createTopic(params, function(err, data) {
-           if (err) return next(err);
-           return subscribe(data);
-         });
-
-       // No there was actually a real error
-       } else {
-         return next(err);
-       }
-
-      // Topic exits, subscribe
-      } else {
-        return subscribe(data.Attributes);
-      }
-      res.json(200, {status:"ok"});
-  })
-
-});
-
 router.post('/push/delete-topic', function(req, res, next){
   if (!req.body.topic) return next({status: 400, message: "Please provide a topic."})
   var params = {
@@ -134,25 +89,62 @@ router.post('/push/delete-topic', function(req, res, next){
 });
 
 router.post('/push/publish', function(req, res, next){
-  var params = {
-    Message: 'New activity on '+req.body.topic, /* required */
-    //MessageAttributes: {
-    //  someKey: {
-    //    DataType: 'STRING_VALUE', /* required */
-    //    BinaryValue: new Buffer('...') || 'STRING_VALUE',
-    //    StringValue: 'STRING_VALUE'
-    //  },
-    //  /* anotherKey: ... */
-    //},
-    //MessageStructure: 'STRING_VALUE',
-    Subject: 'Flashdrinks Activity',
-    TargetArn: 'TopicArn',
-    TopicArn: nconf.get('aws:sns:arn')+':'+req.body.topic
-  };
-  sns.publish(params, function(err, data) {
+  async.waterfall([
+
+    // Find topic
+    function(cb) {
+      if (!req.body.topic) return cb({status: 400, message: "Please provide a topic."})
+      var params = {
+        TopicArn: nconf.get('aws:sns:arn') + ':' + req.body.topic
+      }
+      sns.getTopicAttributes(params, function (err, data) {
+        if (err && err.code == 'NotFound') return cb(null, null);
+        if (err) return cb(err);
+        cb(null, data);
+      })
+
+    // Create if not exists
+    }, function(data, cb) {
+      if (data) return cb(null, data.Attributes);
+      var params = {
+        Name: req.body.topic
+      };
+      sns.createTopic(params, cb);
+
+    // Subscribe
+    }, function(data, cb) {
+      var params = {
+        Protocol: 'application', /* required */
+        TopicArn: data.TopicArn, /* required */
+        Endpoint: req.body.EndpointArn //req.body.token //FIXME is this secure?
+      };
+      sns.subscribe(params, cb);
+
+    // Publish
+    }, function(data, cb) {
+      var params = {
+        Message: 'New activity on '+req.body.topic, /* required */
+        //MessageAttributes: {
+        //  someKey: {
+        //    DataType: 'STRING_VALUE', /* required */
+        //    BinaryValue: new Buffer('...') || 'STRING_VALUE',
+        //    StringValue: 'STRING_VALUE'
+        //  },
+        //  /* anotherKey: ... */
+        //},
+        //MessageStructure: 'STRING_VALUE',
+        Subject: 'Flashdrinks Activity',
+        //TargetArn: 'TopicArn',
+        TopicArn: nconf.get('aws:sns:arn')+':'+req.body.topic
+      };
+      sns.publish(params, cb);
+    }
+  ], function(err, data){
     if (err) return next(err);
-    else return res.json(200, {status: ok});
+    res.json(200, {status:"ok"});
   });
-})
+
+
+});
 
 module.exports = router;
